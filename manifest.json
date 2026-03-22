@@ -1,24 +1,28 @@
 {
   "name": "Quran Memorization Assistant",
   "short_name": "QMA",
-  "description": "Memorize Quran with audio and translations",
+  "description": "Memorize the Quran with structured audio repetition and multi-language translations.",
   "start_url": "/qmapp/",
+  "scope": "/qmapp/",
   "display": "standalone",
-  "background_color": "#f0fafa",
-  "theme_color": "#0d9488",
-  "orientation": "portrait",
+  "background_color": "#0f2027",
+  "theme_color": "#0f2027",
+  "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "icon-192.png",
+      "src": "/qmapp/assets/icons/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "icon-512.png",
+      "src": "/qmapp/assets/icons/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
     }
-  ]
+  ],
+  "categories": ["education", "lifestyle"],
+  "lang": "en",
+  "dir": "ltr"
 }
