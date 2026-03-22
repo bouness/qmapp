@@ -7,19 +7,19 @@
 //     → once a verse is played once, it works offline forever
 // =====================================================================
 
+const BASE        = '/qmapp';
 const CACHE_APP   = 'qma-app-v1';
 const CACHE_AUDIO = 'qma-audio-v1';
 
 const APP_SHELL = [
-  './',
-  './index.html',
-  './style.css',
-  './app.js',
-  './manifest.json',
-  './assets/data/chapters.json',
+  BASE + '/',
+  BASE + '/index.html',
+  BASE + '/app.js',
+  BASE + '/manifest.json',
+  BASE + '/assets/data/chapters.json',
   // lang files
-  './assets/lang/en.json',
-  './assets/lang/ar.json',
+  BASE + '/assets/lang/en.json',
+  BASE + '/assets/lang/ar.json',
 ];
 
 // Install — pre-cache app shell + chapters
@@ -71,7 +71,7 @@ self.addEventListener('fetch', event => {
   }
 
   // ---- Translation / data JSON: cache-first, background update ----
-  if (url.pathname.includes('/assets/data/')) {
+  if (url.pathname.includes('/assets/data/') || url.pathname.includes('/assets/lang/')) {
     event.respondWith(
       caches.open(CACHE_APP).then(async cache => {
         const cached = await cache.match(event.request);
