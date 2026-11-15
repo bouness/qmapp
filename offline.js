@@ -47,6 +47,12 @@
     <button class="off-btn" id="off-audio" data-i="btn_audio"></button>
     <button class="off-btn danger" id="off-del-rec" data-i="del_rec"></button>
     <button class="off-btn danger" id="off-del-all" data-i="del_all"></button>
+    <h4 data-i="loc_h"></h4>
+    <div class="off-note" id="off-loc"></div>
+    <button class="off-btn" id="off-choose" data-i="btn_choose"></button>
+    <button class="off-btn" id="off-allow" data-i="btn_allow"></button>
+    <button class="off-btn" id="off-migrate" data-i="btn_migrate"></button>
+    <button class="off-btn danger" id="off-stop" data-i="btn_stop"></button>
     <div id="off-bar"><div></div></div>
     <div id="off-status"></div>
     <div class="off-note" data-i="note_auto"></div>
@@ -81,10 +87,23 @@
     }
     net += qmaT(navigator.onLine ? 'online' : 'offline');
     $('off-net').textContent = net;
+
     const rec = $('reciter-select').value;
-    const cache = await caches.open(AUDIO);
-    const n = (await cache.keys()).filter(r => r.url.startsWith(AUDIO_BASE + rec + '/')).length;
+    const n = (await QMAAudio.list(rec)).size;
     $('off-aud-info').textContent = qmaT('reciter_info', { name: $('reciter-select').selectedOptions[0]?.text, n });
+
+    const f = await QMAAudio.folderState();
+    let loc;
+    if (!f.supported) loc = qmaT('loc_nofolder');
+    else if (f.connected && f.ready) loc = qmaT('loc_folder', { name: f.name });
+    else if (f.connected) loc = qmaT('loc_lock', { name: f.name });
+    else loc = qmaT('loc_browser');
+    loc += '\n' + qmaT((await QMAAudio.persisted()) ? 'loc_persist_yes' : 'loc_persist_no');
+    $('off-loc').textContent = loc;
+    $('off-choose').style.display  = f.supported ? '' : 'none';
+    $('off-allow').style.display   = f.connected && !f.ready ? '' : 'none';
+    $('off-stop').style.display    = f.connected ? '' : 'none';
+    $('off-migrate').style.display = f.connected && f.ready ? '' : 'none';
   }
 
   // ---------- helpers ----------
@@ -155,20 +174,17 @@
     if (urls.length > 700 && !confirm(qmaT('confirm_big', { n: urls.length }))) return;
     busy = true;
     try {
-      const cache = await caches.open(AUDIO);
       // Test first: the browser may only store audio if the server allows it (CORS)
       status(qmaT('st_check'));
-      let probe;
-      try { probe = await fetch(urls[0], { mode: 'cors' }); }
-      catch (_) { status(qmaT('st_cors')); busy = false; return; }
-      if (!probe.ok) { status(qmaT('st_http', { s: probe.status })); busy = false; return; }
-      if (!(await cache.match(urls[0]))) await cache.put(urls[0], probe);
-
+      try { if (!(await QMAAudio.has(urls[0]))) await QMAAudio.download(urls[0]); }
+      catch (e) {
+        if (e && e.name === 'QuotaExceededError') throw e;
+        status(e instanceof TypeError ? qmaT('st_cors') : qmaT('st_http', { s: e && e.message }));
+        busy = false; return;
+      }
       const failed = await pool(urls, async u => {
-        if (await cache.match(u)) return;
-        const r = await fetch(u, { mode: 'cors' });
-        if (!r.ok) throw new Error(r.status);
-        await cache.put(u, r);
+        if (await QMAAudio.has(u)) return;
+        await QMAAudio.download(u);
       }, 4, (d, t, f) => { bar(d / t); status(qmaT('st_audio', { d, t }) + (f ? qmaT('st_failed', { f }) : '')); });
       status(failed ? qmaT('st_audio_partial', { f: failed }) : qmaT('st_audio_ok', { n: urls.length }));
     } catch (e) {
@@ -178,14 +194,33 @@
   };
 
   $('off-del-rec').onclick = async () => {
-    const rec = $('reciter-select').value, cache = await caches.open(AUDIO);
-    const keys = (await cache.keys()).filter(r => r.url.startsWith(AUDIO_BASE + rec + '/'));
-    await Promise.all(keys.map(k => cache.delete(k)));
-    status(qmaT('st_deleted', { n: keys.length })); refreshInfo();
+    if (!confirm(qmaT('del_rec_confirm'))) return;
+    const n = await QMAAudio.deleteReciter($('reciter-select').value);
+    status(qmaT('st_deleted', { n })); refreshInfo();
   };
   $('off-del-all').onclick = async () => {
     if (!confirm(qmaT('confirm_del'))) return;
-    await caches.delete(AUDIO); status(qmaT('st_all_deleted')); refreshInfo();
+    await QMAAudio.deleteBrowserAudio(); status(qmaT('st_all_deleted')); refreshInfo();
+  };
+
+  // ---------- 3. storage location ----------
+  $('off-choose').onclick = async () => {
+    try { const name = await QMAAudio.chooseFolder(); status(qmaT('st_folder_set', { name })); }
+    catch (e) { if (e && e.name !== 'AbortError') status(qmaT('st_fail', { e })); }
+    refreshInfo();
+  };
+  $('off-allow').onclick = async () => {
+    status((await QMAAudio.allowFolder()) ? qmaT('st_folder_set', { name: (await QMAAudio.folderState()).name }) : qmaT('st_folder_denied'));
+    refreshInfo();
+  };
+  $('off-stop').onclick = async () => { await QMAAudio.forgetFolder(); status(qmaT('st_stopped')); refreshInfo(); };
+  $('off-migrate').onclick = async () => {
+    if (busy) return; busy = true;
+    try {
+      const n = await QMAAudio.migrateToFolder((d, t) => { bar(t ? d / t : 1); status(qmaT('st_audio', { d, t })); });
+      status(qmaT('st_migrated', { n }));
+    } catch (e) { status(qmaT('st_fail', { e })); }
+    busy = false; refreshInfo();
   };
   applyLang();
 })();

@@ -698,6 +698,21 @@ function getVerseText(langCode, surah, ayah) {
   return index[`${surah}_${ayah}`] || '';
 }
 
+// ---- Offline audio: see audio-store.js ----
+// Saved verses (device folder or browser storage) play as in-memory blobs, which behaves the same in every
+// browser. Verses that are not saved stream from everyayah.com and a copy is saved in the background.
+async function resolveAudioSrc(url) {
+  try {
+    const blob = await QMAAudio.get(url);
+    if (blob) return { src: URL.createObjectURL(blob), blob: true };
+    QMAAudio.saveInBackground(url);
+  } catch (_) {}
+  return { src: url, blob: false };
+}
+function releaseAudio(a) {
+  if (a && a._blobUrl) { URL.revokeObjectURL(a._blobUrl); a._blobUrl = null; }
+}
+
 // ---- Build audio URL from everyayah.com ----
 function getAudioUrl(surah, ayah) {
   const s = String(surah).padStart(3, '0');
@@ -743,16 +758,28 @@ function playCurrentVerse() {
     state.audio.onended = null;
     state.audio.onerror = null;
     state.audio.src = '';
+    releaseAudio(state.audio);
   }
-  const audio = new Audio(getAudioUrl(surah, ayah));
+  const audio = new Audio();
+  audio.preload = 'auto';
   audio.onended = onVerseEnded;
   audio.onerror = onAudioError;
   state.audio   = audio;
 
-  audio.play().catch(err => {
-    console.error('play() failed:', err);
-    // Autoplay policy — skip after brief delay
-    setTimeout(onVerseEnded, 150);
+  const url0 = getAudioUrl(surah, ayah);
+  resolveAudioSrc(url0).then(({ src, blob }) => {
+    if (state.audio !== audio) {                 // stopped or skipped while loading
+      if (blob) URL.revokeObjectURL(src);
+      return;
+    }
+    audio._url = url0; audio._fromBlob = blob; audio._retries = 0;
+    if (blob) audio._blobUrl = src;
+    audio.src = src;
+    audio.play().catch(err => {
+      console.error('play() failed:', err);
+      // Autoplay policy — skip after brief delay
+      setTimeout(onVerseEnded, 150);
+    });
   });
 }
 
@@ -771,7 +798,24 @@ function onVerseEnded() {
 }
 
 function onAudioError() {
-  console.warn('Audio error — skipping verse');
+  const a = state.audio;
+  if (a && a._url && a._retries < 2) {
+    a._retries++;
+    console.warn('Audio error, retrying', a.error && a.error.code, a._url);
+    let next;
+    if (a._fromBlob) {                         // saved copy is unreadable: delete it and stream instead
+      QMAAudio.remove(a._url);
+      releaseAudio(a);
+      a._fromBlob = false;
+      next = a._url;
+    } else {                                   // bypass any broken browser-cached copy of the stream
+      next = a._url + '?r=' + Date.now();
+    }
+    a.src = next;
+    a.play().catch(() => {});
+    return;
+  }
+  console.warn('Audio error — skipping verse', a && a.error);
   onVerseEnded();
 }
 
@@ -782,6 +826,7 @@ function stopPlayback() {
     state.audio.onended = null;
     state.audio.onerror = null;
     state.audio.src = '';
+    releaseAudio(state.audio);
     state.audio = null;
   }
   setPlayingUI(false);
@@ -821,6 +866,16 @@ function toast(msg, type = '') {
 // =====================================================================
 function registerSW() {
   if ('serviceWorker' in navigator) {
+    // When a NEW version takes over, reload once so the page runs the new code
+    // (waits until playback stops so it never interrupts listening).
+    const hadController = !!navigator.serviceWorker.controller;
+    let reloaded = false;
+    const reload = () => { if (!reloaded) { reloaded = true; location.reload(); } };
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!hadController) return;                      // first install: nothing to refresh
+      if (state.isPlaying) document.addEventListener('playback-stopped', reload, { once: true });
+      else reload();
+    });
     navigator.serviceWorker.register('./sw.js').catch(err => {
       console.warn('SW reg failed:', err);
     });
