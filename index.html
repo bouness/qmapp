@@ -387,7 +387,7 @@ html[dir=rtl] .settings-toggle-left{flex-direction:row-reverse}
     <p><strong>نرجو منكم الدعاء للمطوّر ووالداه.</strong> لقد استُلهم هذا التطبيق من أسلوب تعليمه في صغره، وتم تطويره لمساعدة الآخرين على تعلّم القرآن الكريم وحفظه.</p>
     <p><strong>Please keep the developer, his father and teacher in your duʿāʾ.</strong> This app was inspired by the way he was taught as a child and developed to support others in learning and memorizing the Qur’an.</p>
     <p><strong>Quran Memorization Assistant (QMA)</strong>: Select a Surah, set your verse range and repetition count, then press <em>Start Playback</em>.</p>
-    <p><strong>Audio</strong>: Streamed from <a href="https://everyayah.com" target="_blank" rel="noopener">EveryAyah.com</a> and cached for offline use after first play.</p>
+    <p><strong>Audio</strong>: Streamed from <a href="https://everyayah.com" target="_blank" rel="noopener">EveryAyah.com</a> and saved for offline use after first play. Tap ⬇️ to download translations, fonts and audio in advance.</p>
     <p><strong>Text &amp; translations</strong>: Loaded from local JSON files (<code>assets/data/quran.json</code>, <code>assets/data/editions/*.json</code>).</p>
     <p><strong>Install:</strong> Tap <em>Install as App</em> to add QMA to your home screen.</p>
     <p>Desktop: <a href="https://github.com/bouness/Quran-Memorization-Assistant" target="_blank" rel="noopener">GitHub ↗</a></p>
@@ -399,6 +399,7 @@ html[dir=rtl] .settings-toggle-left{flex-direction:row-reverse}
 <div id="toast" role="alert" aria-live="polite"></div>
 
 <script src="app.js"></script>
+<script src="offline-i18n.js"></script>
 <script src="offline.js"></script>
 <script src="wake.js"></script>
 <script>

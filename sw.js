@@ -14,7 +14,7 @@ const RUNTIME = 'qma-runtime';   // fonts / other origins (shared with offline.j
 const AUDIO   = 'qma-audio';     // verse mp3s (shared with offline.js) — never auto-deleted
 
 const SHELL = [
-  './', 'index.html', 'app.js', 'offline.js', 'wake.js', 'manifest.json', 'favicon.ico',
+  './', 'index.html', 'app.js', 'offline-i18n.js', 'offline.js', 'wake.js', 'manifest.json', 'favicon.ico',
   'assets/data/chapters.json', 'assets/data/quran.json', 'assets/data/editions/en.json',
   'assets/lang/en.json', 'assets/lang/ar.json',
   'assets/icons/icon-192.png', 'assets/icons/icon-512.png',

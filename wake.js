@@ -15,21 +15,27 @@
   const row = document.createElement('div');
   row.style.cssText = 'margin-top:14px;display:flex;flex-direction:column;gap:6px';
   row.innerHTML = `
-    <label class="form-label" for="keep-awake-select" style="text-align:left">🔆 Keep screen on / إبقاء الشاشة مضاءة</label>
+    <label class="form-label" for="keep-awake-select" id="keep-awake-label" style="text-align:start"></label>
     <select id="keep-awake-select">
-      <option value="playing">While listening (playback active)</option>
-      <option value="always">Whenever the app is open</option>
-      <option value="off">Off</option>
+      <option value="playing" data-i="wake_playing"></option>
+      <option value="always" data-i="wake_always"></option>
+      <option value="off" data-i="wake_off"></option>
     </select>
     <span class="verse-hint-inline" id="keep-awake-note"></span>`;
   document.getElementById('font-preview').parentNode.appendChild(row);
   const sel = row.querySelector('select'), note = row.querySelector('#keep-awake-note');
   sel.value = mode();
+  function applyLang() {
+    row.querySelector('#keep-awake-label').textContent = qmaT('wake_label');
+    row.querySelectorAll('[data-i]').forEach(e => { e.textContent = qmaT(e.dataset.i); });
+    showNote();
+  }
+  qmaOnLang(applyLang);
 
   function showNote() {
-    if (!supported) { note.textContent = 'Not supported by this browser — please update it.'; return; }
+    if (!supported) { note.textContent = qmaT('wake_unsupported'); return; }
     if (mode() === 'off') note.textContent = '';
-    else note.textContent = lock ? 'Screen will stay on ✓' : (wanted() ? 'Could not keep screen on (battery saver?)' : '');
+    else note.textContent = lock ? qmaT('wake_on') : (wanted() ? qmaT('wake_blocked') : '');
   }
 
   async function sync() {
@@ -56,5 +62,6 @@
   window.addEventListener('pageshow', sync);
   // first tap anywhere also (re)tries, in case "always" mode was blocked before a user gesture
   document.addEventListener('click', () => { if (wanted() && !lock) sync(); }, { passive: true });
+  applyLang();
   sync();
 })();

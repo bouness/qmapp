@@ -13,7 +13,7 @@
   #off-modal .modal{max-height:90vh;overflow:auto}
   #off-modal h4{font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--accent);margin:16px 0 6px}
   #off-modal .off-btn{width:100%;margin:4px 0;padding:10px 12px;border-radius:var(--radius-sm);border:1px solid var(--border);
-    background:var(--surface2);color:var(--text);font:600 13px 'Lato',sans-serif;cursor:pointer;text-align:left}
+    background:var(--surface2);color:var(--text);font:600 13px 'Lato',sans-serif;cursor:pointer;text-align:start}
   #off-modal .off-btn:hover{border-color:var(--accent);color:var(--accent)}
   #off-modal .off-btn.danger:hover{border-color:#ef4444;color:#ef4444}
   #off-modal select{width:100%;margin:4px 0}
@@ -24,7 +24,7 @@
   document.head.appendChild(style);
 
   const btn = document.createElement('button');
-  btn.className = 'icon-btn'; btn.id = 'offline-btn'; btn.title = 'Offline downloads'; btn.setAttribute('aria-label', 'Offline downloads');
+  btn.className = 'icon-btn'; btn.id = 'offline-btn';
   btn.textContent = '⬇️';
   const controls = document.querySelector('.header-controls');
   controls.insertBefore(btn, $('help-btn'));
@@ -32,27 +32,33 @@
   const modal = document.createElement('div');
   modal.className = 'modal-overlay'; modal.id = 'off-modal'; modal.setAttribute('role', 'dialog');
   modal.innerHTML = `<div class="modal">
-    <div class="modal-title">⬇️ Offline use</div>
+    <div class="modal-title" data-i="off_title"></div>
     <div class="off-note" id="off-net"></div>
-    <h4>1 · App, Arabic text &amp; translations</h4>
-    <div class="off-note">The app and Arabic text are saved automatically. Save every translation and the fonts too:</div>
-    <button class="off-btn" id="off-text">Download all translations + fonts (~16 MB)</button>
-    <h4>2 · Audio</h4>
+    <h4 data-i="h_text"></h4>
+    <div class="off-note" data-i="note_text"></div>
+    <button class="off-btn" id="off-text" data-i="btn_text"></button>
+    <h4 data-i="h_audio"></h4>
     <div class="off-note" id="off-aud-info"></div>
     <select id="off-scope">
-      <option value="range">Current verse range</option>
-      <option value="surah">Whole current chapter</option>
-      <option value="all">All 114 chapters (large)</option>
+      <option value="range" data-i="scope_range"></option>
+      <option value="surah" data-i="scope_surah"></option>
+      <option value="all" data-i="scope_all"></option>
     </select>
-    <button class="off-btn" id="off-audio">Download audio for selected reciter</button>
-    <button class="off-btn danger" id="off-del-rec">Delete audio of this reciter</button>
-    <button class="off-btn danger" id="off-del-all">Delete ALL downloaded audio</button>
+    <button class="off-btn" id="off-audio" data-i="btn_audio"></button>
+    <button class="off-btn danger" id="off-del-rec" data-i="del_rec"></button>
+    <button class="off-btn danger" id="off-del-all" data-i="del_all"></button>
     <div id="off-bar"><div></div></div>
     <div id="off-status"></div>
-    <div class="off-note">Audio you play while online is also saved automatically for next time.</div>
-    <button class="modal-close" id="off-close">Close</button>
+    <div class="off-note" data-i="note_auto"></div>
+    <button class="modal-close" id="off-close" data-i="close"></button>
   </div>`;
   document.body.appendChild(modal);
+  function applyLang() {
+    modal.querySelectorAll('[data-i]').forEach(e => { e.textContent = qmaT(e.dataset.i); });
+    btn.title = qmaT('off_btn'); btn.setAttribute('aria-label', qmaT('off_btn'));
+    if (modal.classList.contains('open')) refreshInfo();
+  }
+  qmaOnLang(applyLang);
 
   const status = t => ($('off-status').textContent = t);
   const bar = f => ($('off-bar').firstElementChild.style.width = Math.round(f * 100) + '%');
@@ -71,14 +77,14 @@
     let net = '';
     if (navigator.storage?.estimate) {
       const { usage, quota } = await navigator.storage.estimate();
-      net = `Storage used: ${(usage / 1048576).toFixed(0)} MB of ${(quota / 1048576).toFixed(0)} MB. `;
+      net = qmaT('storage', { used: (usage / 1048576).toFixed(0), quota: (quota / 1048576).toFixed(0) }) + ' ';
     }
-    net += navigator.onLine ? 'You are online.' : 'You are offline.';
+    net += qmaT(navigator.onLine ? 'online' : 'offline');
     $('off-net').textContent = net;
     const rec = $('reciter-select').value;
     const cache = await caches.open(AUDIO);
     const n = (await cache.keys()).filter(r => r.url.startsWith(AUDIO_BASE + rec + '/')).length;
-    $('off-aud-info').textContent = `Reciter: ${$('reciter-select').selectedOptions[0]?.text}\nVerses saved for this reciter: ${n}`;
+    $('off-aud-info').textContent = qmaT('reciter_info', { name: $('reciter-select').selectedOptions[0]?.text, n });
   }
 
   // ---------- helpers ----------
@@ -100,9 +106,9 @@
     try {
       const files = TRANSLATIONS.map(t => DATA_BASE + t.file);          // goes through the SW → cached
       let failed = await pool(files, async u => { const r = await fetch(u); if (!r.ok) throw 0; await r.arrayBuffer(); }, 3,
-        (d, t, f) => { bar(d / (t + 1) ); status(`Translations ${d}/${t}${f ? ` (${f} failed)` : ''}`); });
+        (d, t, f) => { bar(d / (t + 1) ); status(qmaT('st_trans', { d, t }) + (f ? qmaT('st_failed', { f }) : '')); });
 
-      status('Fonts…');
+      status(qmaT('st_fonts'));
       const rt = await caches.open(RUNTIME);
       const cssUrls = new Set([...document.querySelectorAll('link[rel=stylesheet][href*="fonts.googleapis"]')].map(l => l.href));
       [...ARABIC_FONTS, ...UI_FONTS].filter(f => !/Noto\+Sans\+SC/.test(f.google))
@@ -119,8 +125,8 @@
         } catch (_) { failed++; }
       }
       bar(1);
-      status(failed ? `Done, but ${failed} item(s) failed. Press again to retry.` : 'Translations and fonts saved ✓');
-    } catch (e) { status('Download failed: ' + e); }
+      status(failed ? qmaT('st_text_partial', { f: failed }) : qmaT('st_text_ok'));
+    } catch (e) { status(qmaT('st_fail', { e })); }
     busy = false; refreshInfo();
   };
 
@@ -146,16 +152,16 @@
   $('off-audio').onclick = async () => {
     if (busy) return;
     const urls = buildList();
-    if (urls.length > 700 && !confirm(`${urls.length} verse files will be downloaded. This can be several hundred MB. Continue?`)) return;
+    if (urls.length > 700 && !confirm(qmaT('confirm_big', { n: urls.length }))) return;
     busy = true;
     try {
       const cache = await caches.open(AUDIO);
       // Test first: the browser may only store audio if the server allows it (CORS)
-      status('Checking server…');
+      status(qmaT('st_check'));
       let probe;
       try { probe = await fetch(urls[0], { mode: 'cors' }); }
-      catch (_) { status('✗ everyayah.com does not allow web pages to download its audio (no CORS headers), so it cannot be saved for offline use from this site.'); busy = false; return; }
-      if (!probe.ok) { status(`✗ Server answered ${probe.status} for this reciter/verse.`); busy = false; return; }
+      catch (_) { status(qmaT('st_cors')); busy = false; return; }
+      if (!probe.ok) { status(qmaT('st_http', { s: probe.status })); busy = false; return; }
       if (!(await cache.match(urls[0]))) await cache.put(urls[0], probe);
 
       const failed = await pool(urls, async u => {
@@ -163,10 +169,10 @@
         const r = await fetch(u, { mode: 'cors' });
         if (!r.ok) throw new Error(r.status);
         await cache.put(u, r);
-      }, 4, (d, t, f) => { bar(d / t); status(`Audio ${d}/${t}${f ? ` (${f} failed)` : ''}`); });
-      status(failed ? `Finished — ${failed} file(s) failed. Press again to retry.` : `Saved ${urls.length} verses ✓ — works offline now`);
+      }, 4, (d, t, f) => { bar(d / t); status(qmaT('st_audio', { d, t }) + (f ? qmaT('st_failed', { f }) : '')); });
+      status(failed ? qmaT('st_audio_partial', { f: failed }) : qmaT('st_audio_ok', { n: urls.length }));
     } catch (e) {
-      status(e && e.name === 'QuotaExceededError' ? '✗ Storage is full. Free some space and try again.' : 'Download failed: ' + e);
+      status(e && e.name === 'QuotaExceededError' ? qmaT('st_quota') : qmaT('st_fail', { e }));
     }
     busy = false; refreshInfo();
   };
@@ -175,10 +181,11 @@
     const rec = $('reciter-select').value, cache = await caches.open(AUDIO);
     const keys = (await cache.keys()).filter(r => r.url.startsWith(AUDIO_BASE + rec + '/'));
     await Promise.all(keys.map(k => cache.delete(k)));
-    status(`Deleted ${keys.length} verses`); refreshInfo();
+    status(qmaT('st_deleted', { n: keys.length })); refreshInfo();
   };
   $('off-del-all').onclick = async () => {
-    if (!confirm('Delete all downloaded audio?')) return;
-    await caches.delete(AUDIO); status('All audio deleted'); refreshInfo();
+    if (!confirm(qmaT('confirm_del'))) return;
+    await caches.delete(AUDIO); status(qmaT('st_all_deleted')); refreshInfo();
   };
+  applyLang();
 })();
