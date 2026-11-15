@@ -4,7 +4,7 @@ A Progressive Web App companion to the [QMA desktop app](https://github.com/boun
 
 ## Live Demo
 
-Once deployed: `https://bouness.github.io/qmapp/`
+[Quran-Memorization-Assistant](https://bouness.github.io/qmapp/)
 
 ## How it works
 
