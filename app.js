@@ -789,6 +789,7 @@ function stopPlayback() {
   dom.progressCount.textContent = '0 / 0';
   const isRTL = state.uiLang === 'ar';
   dom.progressLabel.textContent = isRTL ? 'جاهز' : 'Ready';
+  document.dispatchEvent(new Event('playback-stopped'));   // lets wake.js release the screen lock
 }
 
 function setPlayingUI(playing) {
